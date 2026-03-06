@@ -1,0 +1,55 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: employee-service
+
+  config:
+    import: optional:configserver:http://${CONFIG_USER:config-user}:${CONFIG_PASS:config-pass}@${CONFIG_HOST:localhost}:8888
+
+  datasource:
+    url: jdbc:postgresql://${EMP_DB_HOST:localhost}:5434/emp_db
+    username: ${EMP_DB_USER:emp_user}
+    password: ${EMP_DB_PASS:emp_pass}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_USER:eureka-user}:${EUREKA_PASS:eureka-pass}@${EUREKA_HOST:localhost}:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://${ZIPKIN_HOST:localhost}:9411/api/v2/spans
+
+info:
+  app:
+    name: Employee Service
+    description: Microservicio de empleados
+    version: 1.0.0

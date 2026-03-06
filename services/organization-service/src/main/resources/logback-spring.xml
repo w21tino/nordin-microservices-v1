@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <springProperty scope="context" name="APP_NAME"
+                    source="spring.application.name"
+                    defaultValue="organization-service"/>
+
+    <property name="LOG_PATH" value="logs/${APP_NAME}"/>
+    <property name="LOG_FILE" value="${LOG_PATH}/${APP_NAME}.log"/>
+
+    <!-- ─────────────────────────────────────────────
+         PERFIL: desarrollo — texto plano legible
+    ───────────────────────────────────────────── -->
+    <springProfile name="default | dev">
+
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>
+                    %d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%cyan(${APP_NAME})] [%yellow(%thread)] [%magenta(%X{traceId:-})] %logger{36} - %msg%n
+                </pattern>
+            </encoder>
+        </appender>
+
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_FILE}</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_PATH}/${APP_NAME}.%d{yyyy-MM-dd}.log</fileNamePattern>
+                <maxHistory>7</maxHistory>
+                <totalSizeCap>100MB</totalSizeCap>
+            </rollingPolicy>
+            <encoder>
+                <pattern>
+                    %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [${APP_NAME}] [%thread] [%X{traceId:-}] %logger{36} - %msg%n
+                </pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+
+        <!-- Reducir ruido de librerías externas -->
+        <logger name="org.springframework.cloud.netflix.eureka" level="WARN"/>
+        <logger name="com.netflix.discovery" level="WARN"/>
+        <logger name="org.springframework.cloud.config" level="WARN"/>
+        <logger name="io.github.resilience4j" level="WARN"/>
+
+        <!-- Logs de negocio en DEBUG -->
+        <logger name="com.nordin.organization" level="DEBUG"/>
+
+    </springProfile>
+
+    <!-- ─────────────────────────────────────────────
+         PERFIL: producción — JSON estructurado para Loki en V2
+    ───────────────────────────────────────────── -->
+    <springProfile name="prod">
+
+        <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <customFields>{"app":"${APP_NAME}","env":"prod"}</customFields>
+                <includeMdcKeyName>traceId</includeMdcKeyName>
+                <includeMdcKeyName>spanId</includeMdcKeyName>
+            </encoder>
+        </appender>
+
+        <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_FILE}</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_PATH}/${APP_NAME}.%d{yyyy-MM-dd}.json</fileNamePattern>
+                <maxHistory>30</maxHistory>
+                <totalSizeCap>500MB</totalSizeCap>
+            </rollingPolicy>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <customFields>{"app":"${APP_NAME}","env":"prod"}</customFields>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_JSON"/>
+            <appender-ref ref="FILE_JSON"/>
+        </root>
+
+        <logger name="com.nordin.organization" level="INFO"/>
+
+    </springProfile>
+
+</configuration>

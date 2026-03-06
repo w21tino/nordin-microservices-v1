@@ -1,0 +1,30 @@
+# Maven
+target/
+*.jar
+*.war
+*.class
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
+# VS Code
+.vscode/
+
+# Eclipse
+.eclipse/
+.classpath
+.project
+.settings/
+
+# Variables de entorno — NUNCA subir a GitHub
+.env
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db

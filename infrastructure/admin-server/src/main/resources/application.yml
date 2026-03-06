@@ -1,0 +1,39 @@
+server:
+  port: 9090
+
+spring:
+  application:
+    name: admin-server
+
+  config:
+    import: optional:configserver:http://${CONFIG_USER:config-user}:${CONFIG_PASS:config-pass}@${CONFIG_HOST:localhost}:8888
+
+  security:
+    user:
+      name: ${ADMIN_USER:admin-user}
+      password: ${ADMIN_PASS:admin-pass}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_USER:eureka-user}:${EUREKA_PASS:eureka-pass}@${EUREKA_HOST:localhost}:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+info:
+  app:
+    name: Admin Server
+    description: Monitoreo de microservicios
+    version: 1.0.0

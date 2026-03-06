@@ -1,0 +1,67 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: config-server
+
+  # ─────────────────────────────────────────────
+  # Backend: repositorio GitHub
+  # Reemplaza la URI con tu repositorio de configuración
+  # ─────────────────────────────────────────────
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/w21tino/nordin-config-repo
+          default-label: main
+          clone-on-start: true
+          # Repo público — no requiere credenciales
+          # Si en el futuro se vuelve privado, descomentar:
+          # username: ${GIT_USERNAME}
+          # password: ${GIT_TOKEN}
+
+  # ─────────────────────────────────────────────
+  # Autenticación básica
+  # IMPORTANTE: En producción usar variables de entorno
+  # -e CONFIG_USER=xxx -e CONFIG_PASS=xxx
+  # ─────────────────────────────────────────────
+  security:
+    user:
+      name: ${CONFIG_USER:config-user}
+      password: ${CONFIG_PASS:config-pass}
+
+# ─────────────────────────────────────────────
+# Eureka: el Config Server también se registra
+# para que Admin Server pueda monitorearlo
+# ─────────────────────────────────────────────
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_USER:eureka-user}:${EUREKA_PASS:eureka-pass}@${EUREKA_HOST:localhost}:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+# ─────────────────────────────────────────────
+# Actuator: exponer endpoints para monitoreo
+# ─────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env,refresh
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: Config Server
+    description: Servidor de configuración centralizada
+    version: 1.0.0

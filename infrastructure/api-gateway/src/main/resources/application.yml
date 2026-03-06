@@ -1,0 +1,79 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  config:
+    import: optional:configserver:http://${CONFIG_USER:config-user}:${CONFIG_PASS:config-pass}@${CONFIG_HOST:localhost}:8888
+
+  # ─────────────────────────────────────────────
+  # Rutas del Gateway
+  # lb:// indica load balancer via Eureka
+  # ─────────────────────────────────────────────
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        # Organization Service
+        - id: organization-service
+          uri: lb://organization-service
+          predicates:
+            - Path=/api/organizations/**
+          filters:
+            - StripPrefix=0
+
+        # Department Service
+        - id: department-service
+          uri: lb://department-service
+          predicates:
+            - Path=/api/departments/**
+          filters:
+            - StripPrefix=0
+
+        # Employee Service
+        - id: employee-service
+          uri: lb://employee-service
+          predicates:
+            - Path=/api/employees/**
+          filters:
+            - StripPrefix=0
+
+# JWT secret — En producción usar variable de entorno
+jwt:
+  secret: ${JWT_SECRET:nordin-secret-key-para-desarrollo-minimo-256-bits}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_USER:eureka-user}:${EUREKA_PASS:eureka-pass}@${EUREKA_HOST:localhost}:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateway
+  endpoint:
+    health:
+      show-details: always
+  tracing:
+    sampling:
+      probability: 1.0  # 100% en desarrollo, reducir en producción
+  zipkin:
+    tracing:
+      endpoint: http://${ZIPKIN_HOST:localhost}:9411/api/v2/spans
+
+info:
+  app:
+    name: API Gateway
+    description: Único punto de entrada - Enrutamiento + JWT
+    version: 1.0.0

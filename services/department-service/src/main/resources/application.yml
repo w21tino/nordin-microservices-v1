@@ -1,0 +1,101 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: department-service
+
+  config:
+    import: optional:configserver:http://${CONFIG_USER:config-user}:${CONFIG_PASS:config-pass}@${CONFIG_HOST:localhost}:8888
+
+  datasource:
+    url: jdbc:postgresql://${DEPT_DB_HOST:localhost}:5433/dept_db
+    username: ${DEPT_DB_USER:dept_user}
+    password: ${DEPT_DB_PASS:dept_pass}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_USER:eureka-user}:${EUREKA_PASS:eureka-pass}@${EUREKA_HOST:localhost}:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+# ─────────────────────────────────────────────
+# Resilience4j — Circuit Breaker + Retry
+# ─────────────────────────────────────────────
+resilience4j:
+  circuitbreaker:
+    instances:
+      employee-service:
+        # Abre el circuito si el 50% de las últimas 5 llamadas fallan
+        failure-rate-threshold: 50
+        # Mínimo de llamadas para evaluar el umbral
+        minimum-number-of-calls: 5
+        # Tiempo en estado OPEN antes de pasar a HALF-OPEN
+        wait-duration-in-open-state: 10s
+        # Llamadas permitidas en estado HALF-OPEN para probar recuperación
+        permitted-number-of-calls-in-half-open-state: 3
+        # Habilitar métricas en Actuator y Prometheus
+        register-health-indicator: true
+        # Tipo de ventana deslizante: COUNT_BASED o TIME_BASED
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+
+  retry:
+    instances:
+      employee-service:
+        # Máximo de intentos incluyendo el primero
+        max-attempts: 3
+        # Espera entre intentos
+        wait-duration: 1s
+        # Reintentar solo en excepciones de I/O
+        retry-exceptions:
+          - java.io.IOException
+          - java.net.ConnectException
+          - feign.FeignException
+
+# Feign — habilitar integración con Resilience4j
+feign:
+  circuitbreaker:
+    enabled: true
+  client:
+    config:
+      default:
+        connect-timeout: 3000
+        read-timeout: 5000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://${ZIPKIN_HOST:localhost}:9411/api/v2/spans
+
+info:
+  app:
+    name: Department Service
+    description: Microservicio de departamentos con Circuit Breaker
+    version: 1.0.0

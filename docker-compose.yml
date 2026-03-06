@@ -1,0 +1,131 @@
+version: '3.8'
+
+# ═══════════════════════════════════════════════════════
+# nordin-microservices-v1 — Docker Compose
+#
+# Orden de arranque:
+# 1. Infraestructura de datos (PostgreSQL x3, Zipkin)
+# 2. Observabilidad (Prometheus, Grafana)
+# 3. Config Server
+# 4. Eureka Server
+# 5. Admin Server + API Gateway
+# 6. Microservicios de negocio
+# ═══════════════════════════════════════════════════════
+
+networks:
+  nordin-network:
+    driver: bridge
+
+volumes:
+  org-db-data:
+  dept-db-data:
+  emp-db-data:
+  prometheus-data:
+  grafana-data:
+
+services:
+
+  # ─────────────────────────────────────────────
+  # BASES DE DATOS — Una por microservicio
+  # Patrón: Database per Service
+  # ─────────────────────────────────────────────
+  org-db:
+    image: postgres:14-alpine
+    container_name: org-db
+    environment:
+      POSTGRES_DB: org_db
+      POSTGRES_USER: org_user
+      POSTGRES_PASSWORD: org_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - org-db-data:/var/lib/postgresql/data
+    networks:
+      - nordin-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U org_user -d org_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dept-db:
+    image: postgres:14-alpine
+    container_name: dept-db
+    environment:
+      POSTGRES_DB: dept_db
+      POSTGRES_USER: dept_user
+      POSTGRES_PASSWORD: dept_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - dept-db-data:/var/lib/postgresql/data
+    networks:
+      - nordin-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dept_user -d dept_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  emp-db:
+    image: postgres:14-alpine
+    container_name: emp-db
+    environment:
+      POSTGRES_DB: emp_db
+      POSTGRES_USER: emp_user
+      POSTGRES_PASSWORD: emp_pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - emp-db-data:/var/lib/postgresql/data
+    networks:
+      - nordin-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emp_user -d emp_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # TRAZABILIDAD — Zipkin
+  # ─────────────────────────────────────────────
+  zipkin:
+    image: openzipkin/zipkin:3
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - nordin-network
+
+  # ─────────────────────────────────────────────
+  # OBSERVABILIDAD — Prometheus + Grafana
+  # ─────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - nordin-network
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASS:-admin}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - nordin-network

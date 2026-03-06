@@ -1,0 +1,201 @@
+{
+  "info": {
+    "name": "Employee Service — nordin-microservices-v1",
+    "description": "Colección de pruebas para el Employee Service. Incluye assertions automáticas de códigos HTTP y estructura de respuesta.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "description": "URL base — apunta al API Gateway"
+    },
+    {
+      "key": "employeeId",
+      "value": "",
+      "description": "Se llena automáticamente al crear un empleado"
+    },
+    {
+      "key": "departmentId",
+      "value": "00000000-0000-0000-0000-000000000001",
+      "description": "UUID de departamento para pruebas"
+    }
+  ],
+  "item": [
+    {
+      "name": "Empleados",
+      "item": [
+        {
+          "name": "POST — Crear empleado (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ✅ Validar código de respuesta",
+                  "pm.test('Status 201 Created', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "// ✅ Validar Content-Type",
+                  "pm.test('Content-Type es application/json', () => {",
+                  "  pm.response.to.have.header('Content-Type', 'application/json');",
+                  "});",
+                  "",
+                  "// ✅ Validar estructura del body",
+                  "pm.test('Body contiene id, name, email, departmentId', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('id');",
+                  "  pm.expect(body).to.have.property('name');",
+                  "  pm.expect(body).to.have.property('email');",
+                  "  pm.expect(body).to.have.property('departmentId');",
+                  "});",
+                  "",
+                  "// ✅ Guardar el ID para usar en siguientes requests",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('employeeId', body.id);",
+                  "console.log('employeeId guardado:', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/api/employees",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Juan Pérez\",\n  \"email\": \"juan@nordin.com\",\n  \"departmentId\": \"{{departmentId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST — Email inválido (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Body contiene título de error de validación', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('title');",
+                  "  pm.expect(body.title).to.equal('Error de validación');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/api/employees",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Juan Pérez\",\n  \"email\": \"email-invalido\",\n  \"departmentId\": \"{{departmentId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET — Todos los empleados (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Respuesta es un array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/employees"
+          }
+        },
+        {
+          "name": "GET — Empleado por ID (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('ID coincide con el solicitado', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.id).to.equal(pm.collectionVariables.get('employeeId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/employees/{{employeeId}}"
+          }
+        },
+        {
+          "name": "GET — Empleado no encontrado (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Body contiene título de error', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.title).to.equal('Empleado no encontrado');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/employees/00000000-0000-0000-0000-000000000000"
+          }
+        },
+        {
+          "name": "GET — Empleados por departamento (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Respuesta es un array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/employees/department/{{departmentId}}"
+          }
+        }
+      ]
+    }
+  ]
+}
