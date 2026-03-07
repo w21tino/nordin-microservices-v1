@@ -51,6 +51,9 @@ public class DepartmentServiceImpl implements DepartmentService {
     private final DepartmentMapper departmentMapper;
     private final EmployeeClient employeeClient;
 
+    private final EmployeeResilienceClient employeeResilienceClient;
+
+
     @Override
     @Transactional
     public DepartmentResponse createDepartment(DepartmentRequest request) {
@@ -71,12 +74,14 @@ public class DepartmentServiceImpl implements DepartmentService {
         return departmentRepository.findAll()
                 .stream()
                 .map(dept -> {
-                    List<EmployeeResponse> employees = getEmployeesWithResilience(dept.getId());
+                    List<EmployeeResponse> employees = employeeResilienceClient.getEmployeesWithResilience(dept.getId());
                     String message = employees.isEmpty() ? FALLBACK_MESSAGE : null;
                     return departmentMapper.toResponse(dept, employees, message);
                 })
                 .toList();
     }
+
+
 
     @Override
     @Transactional(readOnly = true)
@@ -86,9 +91,10 @@ public class DepartmentServiceImpl implements DepartmentService {
         Department department = departmentRepository.findById(id)
                 .orElseThrow(() -> new DepartmentNotFoundException(id));
 
-        List<EmployeeResponse> employees = getEmployeesWithResilience(id);
-        String message = employees.isEmpty() ? FALLBACK_MESSAGE : null;
+        // AHORA SÍ: Esta llamada pasa por el Proxy de Spring
+        List<EmployeeResponse> employees = employeeResilienceClient.getEmployeesWithResilience(id);
 
+        String message = employees.isEmpty() ? FALLBACK_MESSAGE : null;
         return departmentMapper.toResponse(department, employees, message);
     }
 
@@ -122,6 +128,8 @@ public class DepartmentServiceImpl implements DepartmentService {
         log.debug("Llamando a employee-service para departamento: {}", departmentId);
         return employeeClient.getEmployeesByDepartmentId(departmentId);
     }
+
+
 
     /**
      * Fallback del Circuit Breaker.

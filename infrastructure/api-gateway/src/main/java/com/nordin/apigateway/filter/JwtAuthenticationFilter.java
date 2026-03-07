@@ -3,7 +3,6 @@ package com.nordin.apigateway.filter;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -27,7 +26,6 @@ import java.util.List;
  * Rutas protegidas: todo lo demás
  */
 @Component
-@Slf4j
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     @Value("${jwt.secret:nordin-secret-key-para-desarrollo-minimo-256-bits}")
@@ -35,22 +33,22 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     // Rutas que no requieren JWT
     private static final List<String> PUBLIC_PATHS = List.of(
-        "/actuator",
-        "/api/auth"
+            "/actuator",
+            "/api/auth",
+            // Swagger UI y api-docs — acceso público para desarrollo
+            "/swagger-ui",
+            "/swagger-ui.html",
+            "/webjars",
+            "/v3/api-docs",
+            "/aggregate"
     );
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
 
-        log.info("entre al filter gateway: {}",path );
         // Si es ruta pública, continuar sin validar
-//        if (isPublicPath(path)) {
-//            return chain.filter(exchange);
-//        }
-
-        if (true ) {
-            log.info("entro al if" );
+        if (isPublicPath(path)) {
             return chain.filter(exchange);
         }
 
@@ -69,8 +67,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
             // Propagar el subject (userId) a los microservicios via header
             ServerWebExchange modifiedExchange = exchange.mutate()
-                .request(r -> r.header("X-User-Id", claims.getSubject()))
-                .build();
+                    .request(r -> r.header("X-User-Id", claims.getSubject()))
+                    .build();
 
             return chain.filter(modifiedExchange);
 
@@ -82,10 +80,10 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private Claims validateToken(String token) {
         return Jwts.parser()
-            .verifyWith(Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8)))
-            .build()
-            .parseSignedClaims(token)
-            .getPayload();
+                .verifyWith(Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8)))
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     private boolean isPublicPath(String path) {

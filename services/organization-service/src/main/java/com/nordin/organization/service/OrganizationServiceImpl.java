@@ -52,6 +52,8 @@ public class OrganizationServiceImpl implements OrganizationService {
     private final OrganizationMapper organizationMapper;
     private final DepartmentClient departmentClient;
 
+    private final DepartmentResilienceClient departmentResilienceClient;
+
     @Override
     @Transactional
     public OrganizationResponse createOrganization(OrganizationRequest request) {
@@ -72,7 +74,7 @@ public class OrganizationServiceImpl implements OrganizationService {
         return organizationRepository.findAll()
                 .stream()
                 .map(org -> {
-                    List<DepartmentResponse> departments = getDepartmentsWithResilience(org.getId());
+                    List<DepartmentResponse> departments = departmentResilienceClient.getDepartmentsWithResilience(org.getId());
                     String message = departments.isEmpty() ? FALLBACK_MESSAGE : null;
                     return organizationMapper.toResponse(org, departments, message);
                 })
@@ -87,22 +89,11 @@ public class OrganizationServiceImpl implements OrganizationService {
         Organization organization = organizationRepository.findById(id)
                 .orElseThrow(() -> new OrganizationNotFoundException(id));
 
-        List<DepartmentResponse> departments = getDepartmentsWithResilience(id);
+        List<DepartmentResponse> departments = departmentResilienceClient.getDepartmentsWithResilience(id);
         String message = departments.isEmpty() ? FALLBACK_MESSAGE : null;
 
         return organizationMapper.toResponse(organization, departments, message);
     }
 
-    @CircuitBreaker(name = DEPARTMENT_SERVICE, fallbackMethod = "departmentsFallback")
-    @Retry(name = DEPARTMENT_SERVICE)
-    public List<DepartmentResponse> getDepartmentsWithResilience(UUID organizationId) {
-        log.debug("Llamando a department-service para organización: {}", organizationId);
-        return departmentClient.getDepartmentsByOrganizationId(organizationId);
-    }
 
-    public List<DepartmentResponse> departmentsFallback(UUID organizationId, Exception ex) {
-        log.warn("⚠️ Circuit Breaker activado para organización: {} — Causa: {}",
-                organizationId, ex.getMessage());
-        return Collections.emptyList();
-    }
 }

@@ -43,6 +43,29 @@ spring:
           filters:
             - StripPrefix=0
 
+        # ─── Rutas para Swagger UI agregado ───
+        # El Gateway proxea los api-docs de cada servicio
+        - id: organization-service-swagger
+          uri: lb://organization-service
+          predicates:
+            - Path=/aggregate/organization-service/**
+          filters:
+            - RewritePath=/aggregate/organization-service/(?<remaining>.*), /${remaining}
+
+        - id: department-service-swagger
+          uri: lb://department-service
+          predicates:
+            - Path=/aggregate/department-service/**
+          filters:
+            - RewritePath=/aggregate/department-service/(?<remaining>.*), /${remaining}
+
+        - id: employee-service-swagger
+          uri: lb://employee-service
+          predicates:
+            - Path=/aggregate/employee-service/**
+          filters:
+            - RewritePath=/aggregate/employee-service/(?<remaining>.*), /${remaining}
+
 # JWT secret — En producción usar variable de entorno
 jwt:
   secret: ${JWT_SECRET:nordin-secret-key-para-desarrollo-minimo-256-bits}
@@ -77,3 +100,21 @@ info:
     name: API Gateway
     description: Único punto de entrada - Enrutamiento + JWT
     version: 1.0.0
+
+# ─────────────────────────────────────────────
+# SpringDoc — Swagger UI agregado en el Gateway
+# Acceso: http://localhost:8080/swagger-ui.html
+# ─────────────────────────────────────────────
+springdoc:
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    urls:
+      - name: organization-service
+        url: /aggregate/organization-service/v3/api-docs
+      - name: department-service
+        url: /aggregate/department-service/v3/api-docs
+      - name: employee-service
+        url: /aggregate/employee-service/v3/api-docs
+  api-docs:
+    enabled: true

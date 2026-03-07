@@ -52,6 +52,10 @@ resilience4j:
         # Tipo de ventana deslizante: COUNT_BASED o TIME_BASED
         sliding-window-type: COUNT_BASED
         sliding-window-size: 10
+        record-exceptions:
+          - java.io.IOException
+          - java.net.ConnectException
+          - feign.FeignException
 
   retry:
     instances:
@@ -63,8 +67,6 @@ resilience4j:
         # Reintentar solo en excepciones de I/O
         retry-exceptions:
           - java.io.IOException
-          - java.net.ConnectException
-          - feign.FeignException
 
 # Feign — habilitar integración con Resilience4j
 feign:
