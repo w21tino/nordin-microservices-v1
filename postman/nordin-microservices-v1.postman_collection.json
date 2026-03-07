@@ -1,0 +1,556 @@
+{
+  "info": {
+    "name": "nordin-microservices-v1",
+    "description": "Colección completa para nordin-microservices-v1.\n\nArquitectura:\n  organization-service (8081) → department-service (8082) → employee-service (8083)\n\nFlujo recomendado:\n  1. Crear empleado\n  2. Crear departamento\n  3. Crear organización\n  4. GET organización → ver árbol completo org→dept→emp\n  5. Probar Circuit Breaker deteniendo employee-service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url_org",  "value": "http://localhost:8081", "type": "string" },
+    { "key": "base_url_dept", "value": "http://localhost:8082", "type": "string" },
+    { "key": "base_url_emp",  "value": "http://localhost:8083", "type": "string" },
+    { "key": "base_url_gw",   "value": "http://localhost:8080", "type": "string" },
+    { "key": "org_id",        "value": "", "type": "string" },
+    { "key": "dept_id",       "value": "", "type": "string" },
+    { "key": "emp_id",        "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "01 - Employee Service",
+      "description": "Gestión de empleados — puerto 8083",
+      "item": [
+        {
+          "name": "Crear empleado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Tiene ID', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id).to.be.a('string');",
+                  "    pm.collectionVariables.set('emp_id', json.id);",
+                  "    console.log('emp_id guardado:', json.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url_emp}}/api/employees", "host": ["{{base_url_emp}}"], "path": ["api", "employees"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Juan Pérez\",\n  \"email\": \"juan@nordin.com\",\n  \"departmentId\": \"{{dept_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Crear empleado (sin departamento)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url_emp}}/api/employees", "host": ["{{base_url_emp}}"], "path": ["api", "employees"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"María López\",\n  \"email\": \"maria@nordin.com\",\n  \"departmentId\": \"00000000-0000-0000-0000-000000000001\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Obtener todos los empleados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_emp}}/api/employees", "host": ["{{base_url_emp}}"], "path": ["api", "employees"] }
+          }
+        },
+        {
+          "name": "Obtener empleado por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ID coincide', () => {",
+                  "    pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('emp_id'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_emp}}/api/employees/{{emp_id}}", "host": ["{{base_url_emp}}"], "path": ["api", "employees", "{{emp_id}}"] }
+          }
+        },
+        {
+          "name": "Obtener empleados por departamento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_emp}}/api/employees/department/{{dept_id}}", "host": ["{{base_url_emp}}"], "path": ["api", "employees", "department", "{{dept_id}}"] }
+          }
+        },
+        {
+          "name": "Empleado no encontrado → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('ProblemDetail RFC 7807', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.title).to.be.a('string');",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_emp}}/api/employees/00000000-0000-0000-0000-000000000000", "host": ["{{base_url_emp}}"], "path": ["api", "employees", "00000000-0000-0000-0000-000000000000"] }
+          }
+        },
+        {
+          "name": "Validación → 400 (email inválido)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Tiene errors', () => pm.expect(pm.response.json().errors).to.be.an('object'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url_emp}}/api/employees", "host": ["{{base_url_emp}}"], "path": ["api", "employees"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test\",\n  \"email\": \"no-es-un-email\",\n  \"departmentId\": \"00000000-0000-0000-0000-000000000001\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Department Service",
+      "description": "Gestión de departamentos — puerto 8082\nLlama a employee-service via Feign con Circuit Breaker",
+      "item": [
+        {
+          "name": "Crear departamento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Tiene ID', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id).to.be.a('string');",
+                  "    pm.collectionVariables.set('dept_id', json.id);",
+                  "    console.log('dept_id guardado:', json.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url_dept}}/api/departments", "host": ["{{base_url_dept}}"], "path": ["api", "departments"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ingeniería\",\n  \"organizationId\": \"{{org_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Obtener todos los departamentos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('Employees anidados', () => {",
+                  "    const depts = pm.response.json();",
+                  "    if (depts.length > 0) {",
+                  "        pm.expect(depts[0].employees).to.be.an('array');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_dept}}/api/departments", "host": ["{{base_url_dept}}"], "path": ["api", "departments"] }
+          }
+        },
+        {
+          "name": "Obtener departamento por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiene employees', () => {",
+                  "    pm.expect(pm.response.json().employees).to.be.an('array');",
+                  "});",
+                  "pm.test('Circuit Breaker OK — message null', () => {",
+                  "    pm.expect(pm.response.json().message).to.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_dept}}/api/departments/{{dept_id}}", "host": ["{{base_url_dept}}"], "path": ["api", "departments", "{{dept_id}}"] }
+          }
+        },
+        {
+          "name": "Obtener departamentos por organización",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_dept}}/api/departments/organization/{{org_id}}", "host": ["{{base_url_dept}}"], "path": ["api", "departments", "organization", "{{org_id}}"] }
+          }
+        },
+        {
+          "name": "Circuit Breaker — estado actual",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiene circuit breakers', () => {",
+                  "    pm.expect(pm.response.json().circuitBreakers).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_dept}}/actuator/circuitbreakers", "host": ["{{base_url_dept}}"], "path": ["actuator", "circuitbreakers"] }
+          }
+        },
+        {
+          "name": "Departamento no encontrado → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('ProblemDetail RFC 7807', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_dept}}/api/departments/00000000-0000-0000-0000-000000000000", "host": ["{{base_url_dept}}"], "path": ["api", "departments", "00000000-0000-0000-0000-000000000000"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Organization Service",
+      "description": "Gestión de organizaciones — puerto 8081\nOrquesta department-service (que a su vez llama employee-service)\nDemuestra Circuit Breaker en cascada",
+      "item": [
+        {
+          "name": "Crear organización",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Tiene ID', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id).to.be.a('string');",
+                  "    pm.collectionVariables.set('org_id', json.id);",
+                  "    console.log('org_id guardado:', json.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url_org}}/api/organizations", "host": ["{{base_url_org}}"], "path": ["api", "organizations"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nordin Corp\",\n  \"address\": \"Calle Principal 123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Obtener todas las organizaciones",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_org}}/api/organizations", "host": ["{{base_url_org}}"], "path": ["api", "organizations"] }
+          }
+        },
+        {
+          "name": "Obtener organización — árbol completo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiene departments', () => {",
+                  "    pm.expect(pm.response.json().departments).to.be.an('array');",
+                  "});",
+                  "pm.test('Departments tienen employees', () => {",
+                  "    const depts = pm.response.json().departments;",
+                  "    if (depts.length > 0) {",
+                  "        pm.expect(depts[0].employees).to.be.an('array');",
+                  "    }",
+                  "});",
+                  "pm.test('Sin degradación — message null', () => {",
+                  "    pm.expect(pm.response.json().message).to.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_org}}/api/organizations/{{org_id}}", "host": ["{{base_url_org}}"], "path": ["api", "organizations", "{{org_id}}"] }
+          }
+        },
+        {
+          "name": "Circuit Breaker — Graceful Degradation ⚠️",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 — no propaga error', () => pm.response.to.have.status(200));",
+                  "pm.test('departments vacío por fallback', () => {",
+                  "    pm.expect(pm.response.json().departments).to.be.an('array');",
+                  "});",
+                  "pm.test('message indica degradación', () => {",
+                  "    const message = pm.response.json().message;",
+                  "    if (message) {",
+                  "        pm.expect(message).to.include('⚠️');",
+                  "        console.log('Circuit Breaker activo:', message);",
+                  "    } else {",
+                  "        console.log('Servicio disponible — sin degradación');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_org}}/api/organizations/{{org_id}}", "host": ["{{base_url_org}}"], "path": ["api", "organizations", "{{org_id}}"] },
+            "description": "⚠️ INSTRUCCIONES PARA PROBAR CIRCUIT BREAKER:\n1. Detén employee-service (Ctrl+C)\n2. Ejecuta esta petición\n3. Debes ver departments con employees:[] y message con ⚠️\n4. Levanta employee-service nuevamente\n5. Espera 10s (wait-duration-in-open-state)\n6. Ejecuta de nuevo — message debe ser null"
+          }
+        },
+        {
+          "name": "Organización no encontrada → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('ProblemDetail RFC 7807', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.title).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_org}}/api/organizations/00000000-0000-0000-0000-000000000000", "host": ["{{base_url_org}}"], "path": ["api", "organizations", "00000000-0000-0000-0000-000000000000"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Via API Gateway",
+      "description": "Mismas peticiones pero pasando por el Gateway (puerto 8080)\nDemuestra enrutamiento transparente via Eureka + Load Balancer",
+      "item": [
+        {
+          "name": "GET organizaciones via Gateway",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Mismo resultado que directo', () => {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_gw}}/api/organizations", "host": ["{{base_url_gw}}"], "path": ["api", "organizations"] }
+          }
+        },
+        {
+          "name": "GET departamentos via Gateway",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_gw}}/api/departments", "host": ["{{base_url_gw}}"], "path": ["api", "departments"] }
+          }
+        },
+        {
+          "name": "GET empleados via Gateway",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_gw}}/api/employees", "host": ["{{base_url_gw}}"], "path": ["api", "employees"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Observabilidad",
+      "description": "Health checks y métricas de todos los servicios",
+      "item": [
+        {
+          "name": "Health — organization-service",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_org}}/actuator/health", "host": ["{{base_url_org}}"], "path": ["actuator", "health"] }
+          }
+        },
+        {
+          "name": "Health — department-service",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_dept}}/actuator/health", "host": ["{{base_url_dept}}"], "path": ["actuator", "health"] }
+          }
+        },
+        {
+          "name": "Health — employee-service",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_emp}}/actuator/health", "host": ["{{base_url_emp}}"], "path": ["actuator", "health"] }
+          }
+        },
+        {
+          "name": "Circuit Breakers — department-service",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_dept}}/actuator/circuitbreakers", "host": ["{{base_url_dept}}"], "path": ["actuator", "circuitbreakers"] }
+          }
+        },
+        {
+          "name": "Circuit Breakers — organization-service",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_org}}/actuator/circuitbreakers", "host": ["{{base_url_org}}"], "path": ["actuator", "circuitbreakers"] }
+          }
+        },
+        {
+          "name": "Métricas Prometheus — employee-service",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url_emp}}/actuator/prometheus", "host": ["{{base_url_emp}}"], "path": ["actuator", "prometheus"] }
+          }
+        }
+      ]
+    }
+  ]
+}
