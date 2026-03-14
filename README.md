@@ -67,7 +67,7 @@ Cliente
 | Trazabilidad | Micrometer Tracing + Zipkin | — |
 | Métricas | Micrometer + Prometheus + Grafana | — |
 | Monitorización | Spring Boot Admin | — |
-| Seguridad | Spring Security + JJWT | 0.12.3 |
+| Seguridad | Spring Security + JWT | 0.12.3 |
 | Build | Maven (multi-módulo) | 3.9+ |
 | Contenedores | Docker + Docker Compose | — |
 
