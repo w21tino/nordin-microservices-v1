@@ -6,29 +6,35 @@ scrape_configs:
   - job_name: 'api-gateway'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['host.docker.internal:8080']
+      - targets: ['172.17.0.1:8080']
 
   - job_name: 'organization-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['host.docker.internal:8081']
+      - targets: ['172.17.0.1:8081']
 
   - job_name: 'department-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['host.docker.internal:8082']
+      - targets: ['172.17.0.1:8082']
 
   - job_name: 'employee-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['host.docker.internal:8083']
+      - targets: ['172.17.0.1:8083']
 
   - job_name: 'config-server'
     metrics_path: '/actuator/prometheus'
+    basic_auth:
+      username: config-user
+      password: config-pass
     static_configs:
-      - targets: ['host.docker.internal:8888']
+      - targets: ['172.17.0.1:8888']
 
   - job_name: 'eureka-server'
     metrics_path: '/actuator/prometheus'
+    basic_auth:
+      username: eureka-user
+      password: eureka-pass
     static_configs:
-      - targets: ['host.docker.internal:8761']
+      - targets: ['172.17.0.1:8761']
